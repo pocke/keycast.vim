@@ -1,14 +1,22 @@
+let s:save_cpo = &cpo
+set cpo&vim
+
+
+
 let s:ch_a = char2nr('a')
 let s:ch_z = char2nr('z')
 let s:ctrl_offest = 96
 
-let s:win_positions = {}
+let s:bottom_win_positions = {}
+let s:other_win_positions = {}
 
 function! s:key2str(key) abort
   if a:key ==# "\<Esc>"
     return '<Esc>'
   elseif a:key ==# "\<CR>"
     return '<CR>'
+  elseif a:key ==# "\<BS>"
+    return '<BS>'
   elseif a:key ==# " "
     return '<Space>'
   end
@@ -25,8 +33,15 @@ endfunction
 function! s:display_key(key) abort
   let ch = systemlist('banner ' . shellescape(s:key2str(a:key)))
 
-  let move_offset = max(map(copy(ch), { _, v -> len(v) }))
-  call s:move_existing_popups_to_left(move_offset)
+  " Move existing popups
+  if a:key ==# "\<CR>"
+    let move_offset = len(ch) + 1
+    call s:move_existing_popups_to_top(move_offset)
+  else
+    let move_offset = max(map(copy(ch), { _, v -> len(v) }))
+    call s:move_existing_popups_to_left(move_offset)
+  end
+
   let line = &lines - 1
   let col = &columns - 1
 
@@ -38,18 +53,45 @@ function! s:display_key(key) abort
   \   "callback": { id, _ -> s:handle_popup_close(id) }
   \ })
 
-  let s:win_positions[winid] = {"line": line, "col": col}
+  let pos = {"line": line, "col": col}
+  let s:bottom_win_positions[winid] = pos
 endfunction
 
 function! s:handle_popup_close(winid) abort
-  call remove(s:win_positions, a:winid)
+  if has_key(s:bottom_win_positions, a:winid)
+    call remove(s:bottom_win_positions, a:winid)
+  endif
+  if has_key(s:other_win_positions, a:winid)
+    call remove(s:other_win_positions, a:winid)
+  endif
 endfunction
 
 function! s:move_existing_popups_to_left(offset) abort
-  for id in keys(s:win_positions)
-    let pos = s:win_positions[id]
+  for id in keys(s:bottom_win_positions)
+    let pos = s:bottom_win_positions[id]
     let new_pos = {"line": pos.line, "col": pos.col - a:offset}
-    let s:win_positions[id] = new_pos
+    let s:bottom_win_positions[id] = new_pos
+    call popup_move(id, {
+    \   "pos": "botright",
+    \   "line": new_pos.line,
+    \   "col": new_pos.col,
+    \ })
+  endfor
+endfunction
+
+function! s:move_existing_popups_to_top(offset) abort
+  call s:move_to_top(s:bottom_win_positions, a:offset)
+  call s:move_to_top(s:other_win_positions, a:offset)
+
+  call extend(s:other_win_positions, s:bottom_win_positions)
+  let s:bottom_win_positions = {}
+endfunction
+
+function! s:move_to_top(positions, offset) abort
+  for id in keys(a:positions)
+    let pos = a:positions[id]
+    let new_pos = {"line": pos.line - a:offset, "col": pos.col}
+    let a:positions[id] = new_pos
     call popup_move(id, {
     \   "pos": "botright",
     \   "line": new_pos.line,
@@ -65,3 +107,7 @@ endfunction
 function! keycast#stop() abort
   call popup_close(s:filter_popup_id)
 endfunction
+
+
+let &cpo = s:save_cpo
+unlet s:save_cpo
