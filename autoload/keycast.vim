@@ -1,8 +1,8 @@
-let s:display_typed_char_zindex = 1
-
 let s:ch_a = char2nr('a')
 let s:ch_z = char2nr('z')
 let s:ctrl_offest = 96
+
+let s:win_positions = {}
 
 function! s:key2str(key) abort
   if a:key ==# "\<Esc>"
@@ -24,9 +24,38 @@ endfunction
 
 function! s:display_key(key) abort
   let ch = systemlist('banner ' . shellescape(s:key2str(a:key)))
-  let winid = popup_create(ch, {"zindex": s:display_typed_char_zindex})
-  let s:display_typed_char_zindex += 1
-  call timer_start(500, { -> popup_close(winid) })
+
+  let move_offset = max(map(copy(ch), { _, v -> len(v) }))
+  call s:move_existing_popups_to_left(move_offset)
+  let line = &lines - 1
+  let col = &columns - 1
+
+  let winid = popup_create(ch, {
+  \   "time": 2000,
+  \   "pos": "botright",
+  \   "line": line,
+  \   "col": col,
+  \   "callback": { id, _ -> s:handle_popup_close(id) }
+  \ })
+
+  let s:win_positions[winid] = {"line": line, "col": col}
+endfunction
+
+function! s:handle_popup_close(winid) abort
+  call remove(s:win_positions, a:winid)
+endfunction
+
+function! s:move_existing_popups_to_left(offset) abort
+  for id in keys(s:win_positions)
+    let pos = s:win_positions[id]
+    let new_pos = {"line": pos.line, "col": pos.col - a:offset}
+    let s:win_positions[id] = new_pos
+    call popup_move(id, {
+    \   "pos": "botright",
+    \   "line": new_pos.line,
+    \   "col": new_pos.col,
+    \ })
+  endfor
 endfunction
 
 function! keycast#start() abort
