@@ -17,6 +17,8 @@ function! s:key2str(key) abort
     return '<CR>'
   elseif a:key ==# "\<BS>"
     return '<BS>'
+  elseif a:key ==# "\<Tab>"
+    return '<Tab>'
   elseif a:key ==# " "
     return '<Space>'
   end
@@ -34,12 +36,12 @@ function! s:display_key(key) abort
   let ch = systemlist('banner ' . shellescape(s:key2str(a:key)))
 
   " Move existing popups
+  let width = max(map(copy(ch), { _, v -> len(v) }))
+  let height = len(ch)
   if a:key ==# "\<CR>"
-    let move_offset = len(ch) + 1
-    call s:move_existing_popups_to_top(move_offset)
+    call s:move_existing_popups_to_top(height + 1)
   else
-    let move_offset = max(map(copy(ch), { _, v -> len(v) }))
-    call s:move_existing_popups_to_left(move_offset)
+    call s:move_existing_popups_to_left(width)
   end
 
   let line = &lines - 1
@@ -53,7 +55,7 @@ function! s:display_key(key) abort
   \   "callback": { id, _ -> s:handle_popup_close(id) }
   \ })
 
-  let pos = {"line": line, "col": col}
+  let pos = {"line": line, "col": col, "width": width, "height": height}
   let s:bottom_win_positions[winid] = pos
 endfunction
 
@@ -69,13 +71,18 @@ endfunction
 function! s:move_existing_popups_to_left(offset) abort
   for id in keys(s:bottom_win_positions)
     let pos = s:bottom_win_positions[id]
-    let new_pos = {"line": pos.line, "col": pos.col - a:offset}
-    let s:bottom_win_positions[id] = new_pos
-    call popup_move(id, {
-    \   "pos": "botright",
-    \   "line": new_pos.line,
-    \   "col": new_pos.col,
-    \ })
+    let pos.col -= a:offset
+
+    if pos.col - pos.width < 0
+      call popup_close(id)
+      call s:handle_popup_close(id)
+    else
+      call popup_move(id, {
+      \   "pos": "botright",
+      \   "line": pos.line,
+      \   "col": pos.col,
+      \ })
+    end
   endfor
 endfunction
 
@@ -90,13 +97,18 @@ endfunction
 function! s:move_to_top(positions, offset) abort
   for id in keys(a:positions)
     let pos = a:positions[id]
-    let new_pos = {"line": pos.line - a:offset, "col": pos.col}
-    let a:positions[id] = new_pos
-    call popup_move(id, {
-    \   "pos": "botright",
-    \   "line": new_pos.line,
-    \   "col": new_pos.col,
-    \ })
+    let pos.line -= a:offset
+
+    if pos.line - pos.height < 0
+      call popup_close(id)
+      call s:handle_popup_close(id)
+    else
+      call popup_move(id, {
+      \   "pos": "botright",
+      \   "line": pos.line,
+      \   "col": pos.col,
+      \ })
+    end
   endfor
 endfunction
 
