@@ -1,7 +1,26 @@
 let s:save_cpo = &cpo
 set cpo&vim
 
+" --- Formatters
 
+function! s:banner_command(char) abort
+  return systemlist('banner ' . shellescape(s:key2str(a:char)))
+endfunction
+
+function! s:vanner(char) abort
+  let data = vanner#string(a:char, {})
+  return split(data, "\n")
+endfunction
+
+function! s:format(char) abort
+  return call(g:keycast#formatters[g:keycast#formatter], [a:char])
+endfunction
+
+let keycast#formatters = {
+\   "banner_command": funcref("s:banner_command"),
+\   "vanner": funcref("s:vanner")
+\ }
+let keycast#formatter = 'vanner'
 
 let s:ch_a = char2nr('a')
 let s:ch_z = char2nr('z')
@@ -9,6 +28,7 @@ let s:ctrl_offest = 96
 
 let s:bottom_win_positions = {}
 let s:other_win_positions = {}
+
 
 function! s:key2str(key) abort
   if a:key ==# "\<Esc>"
@@ -33,7 +53,7 @@ function! s:key2str(key) abort
 endfunction
 
 function! s:display_key(key) abort
-  let ch = systemlist('banner ' . shellescape(s:key2str(a:key)))
+  let ch = s:format(s:key2str(a:key))
 
   " Move existing popups
   let width = max(map(copy(ch), { _, v -> len(v) }))

@@ -20,4 +20,17 @@ Requirements
 ---
 
 * Popup feature of Vim.
-* banner (1)
+* [pocke/vanner](https://github.com/pocke/vanner) or banner (1)
+  * Known issue: BSD banner does not work for keycast.vim.
+
+
+Configuration
+---
+
+```vim
+" Use pocke/vanner (default)
+let keycast#formatter = 'vanner'
+
+" Use banner (1)
+let keycast#formatter = 'banner_command'
+```
