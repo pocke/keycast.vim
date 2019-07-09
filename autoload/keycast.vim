@@ -12,15 +12,20 @@ function! s:vanner(char) abort
   return split(data, "\n")
 endfunction
 
+function! s:raw(char) abort
+  return [a:char]
+endfunction
+
 function! s:format(char) abort
   return call(g:keycast#formatters[g:keycast#formatter], [a:char])
 endfunction
 
 let keycast#formatters = {
 \   "banner_command": funcref("s:banner_command"),
-\   "vanner": funcref("s:vanner")
+\   "vanner": funcref("s:vanner"),
+\   "raw": funcref("s:raw"),
 \ }
-let keycast#formatter = 'vanner'
+let keycast#formatter = get(g:, 'keycast#formatter', 'vanner')
 
 let s:ch_a = char2nr('a')
 let s:ch_z = char2nr('z')
